@@ -10,6 +10,14 @@
  */
 
 module.exports.bootstrap = function(cb) {
+  // Verify that config is okay
+  if (!sails.config.repository || !sails.config.ref || !sails.config.localRepoPath) {
+    return cb(new Error("Must have repository, ref and localRepoPath config!  Exiting..."));
+  }
+  if (!sails.config.localRepoScript) {
+    sails.log.warn("No localRepoScript specified; assuming `app.js`...");
+    sails.config.localRepoScript = "app.js";
+  }
   // Set up the global queue
   QueueService.setupQueue();
   cb();
