@@ -11,6 +11,9 @@ module.exports = {
 
   index: function(req, res) {
 
+    sails.log("------------------------------------------");
+    sails.log("Received request: ", new Date());
+
     var payload = req.body;
 
     // Make sure we have a payload
@@ -26,35 +29,19 @@ module.exports = {
       return res.send("Ignoring request from the `"+payload.ref+"` branch; I only listen for `"+sails.config.ref+"` events.");
     }
 
-    async.series([
-      function gitPull(cb) {
-        var ps = spawn("git", ["pull"], {cwd: sails.config.localRepoPath});
-        ps.stdout.on('data', console.log);
-        ps.stderr.on('data', console.log);
-        ps.on('close', function(code) {
-          console.log("GIT PULL exited with code "+code);
-          if (code !== 0) {
-            return cb("Error: git pull exited with code "+code);
-          }
-          return cb();
-        });
-      },
-      function npmUpdate(cb) {
-        var ps = spawn("npm", ["update"], {cwd: sails.config.localRepoPath});
-       	ps.stdout.on('data', console.log);
-        ps.stderr.on('data', console.log);
-        ps.on('close', function(code) {
-          console.log("NPM UPDATE exited with code "+code);
-          if (code !== 0) {
-            return cb("Error: npm update exited with code "+code);
-          }
-          return cb();
-        });
-      }
-    ], function done(err) {
-      if (err) {return res.send(500, err);}
-      return res.send(200, "Ok!")
-    });
+    // Add a task to the queue to do a "git pull"
+    QueueService.addGitPullTask();
+
+    // Check if the package.json was modified by any commits
+    if (_.any(payload.commits, function(commit) {
+      return commit.modified.indexOf("package.json") !== -1;
+    })) {
+      // If so, add a task to do an npm update
+      QueueService.addNpmInstallTask();
+    }
+
+    res.send(200, "Ok!");
+    sails.log("Sent ok response.");
 
   }
 
