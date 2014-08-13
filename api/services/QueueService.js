@@ -104,17 +104,31 @@ module.exports = {
       // Pause queue processing, so that any tasks added while doing our server
       // restart won't be processed until we're done.
       sails.config.ciQueue.pause();
-      sails.log("Running `forever restart app.js`...");
+
+      var scriptPath = path.resolve(sails.config.localRepoPath, sails.config.localRepoScript);
+      sails.log("Running `forever stop "+scriptPath+"`...");
       // Restart the target server.
-      var ps = exec("forever restart app.js", {cwd: sails.config.localRepoPath}, function(err) {
+      var ps = exec("forever stop "+scriptPath, function(err) {
         if (err) {
-          sails.log("Error on `forever restart app.js`: ", err);
+          sails.log("Error on `forever stop "+scriptPath+"`: ", {cwd: sails.config.localRepoPath}, err);
           // handle error
         }
-        sails.log("Finished `forever restart app.js`");
-        sails.log("Server re-lifted on ", new Date());
-        // Resume queue processing.
-        sails.config.ciQueue.resume();
+        sails.log("Finished `forever stop`");
+
+        sails.log("Running `forever start "+scriptPath+"`...");
+        ps = exec("forever start "+path.resolve(sails.config.localRepoPath, sails.config.localRepoScript), {cwd: sails.config.localRepoPath}, function(err) {
+          if (err) {
+            sails.log("Error on `forever stop "+scriptPath+"`: ", err);
+            // handle error
+          }
+          sails.log("Finished `forever stop "+scriptPath+"`");
+
+          sails.log("Server re-lifted on ", new Date());
+
+          // Resume queue processing.
+          sails.config.ciQueue.resume();
+        });
+
       });
 
     };
