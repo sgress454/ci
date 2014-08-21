@@ -40,6 +40,11 @@ module.exports = {
       QueueService.addNpmInstallTask();
     }
 
+    // If we're configured for it, add an "npm test" task
+    if (sails.config.runTests) {
+      QueueService.addTestTask();
+    }
+
     res.send(200, "Ok!");
     sails.log("Sent ok response.");
 
