@@ -29,6 +29,11 @@ module.exports = {
      */
     sails.config.ciQueue.drain = function() {
 
+      if (sails.config.ciQueue.errorState) {
+        sails.log("Skipping npm update due to previous errors...");
+        return;
+      }
+
       // Pause queue processing, so that any tasks added while doing our server
       // restart won't be processed until we're done.
       sails.config.ciQueue.pause();
@@ -55,6 +60,23 @@ module.exports = {
 
           // Resume queue processing.
           sails.config.ciQueue.resume();
+
+          // Send an email if requested
+          if (sails.config.sendEmailOnSuccess) {
+            var server = sails.getHost() || 'server';
+            sails.hooks.email.send("success", {
+              server: server,
+              repo: sails.config.repository,
+              branch: sails.config.ref.split('/').pop(),
+              date: new Date()
+            },
+            {
+              to: sails.config.sendEmailTo,
+              subject: "Successful deploy of "+sails.config.repository+" on "+server
+            }, function(err){
+              if (err) {sails.log.error("MAIL ERR", err);}
+            });
+          }
         });
 
       });

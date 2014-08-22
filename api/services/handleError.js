@@ -5,7 +5,7 @@ var Machine = require('node-machine');
 var path = require('path');
 var fs = require('fs');
 
-module.exports = function (cb, msg) {
+module.exports = function (cb, msg, attachment) {
 
   // Set the error state
   sails.config.ciQueue.errorState = true;
@@ -19,6 +19,9 @@ module.exports = function (cb, msg) {
     // If we get an error here, it's a real fiasco
     if (err) {
       sails.log.error("Could not roll back to previous commit after errors; killing queue.");
+      msg += " Additionally, an error occurred trying to roll back to the last known good commit." +
+      "  At this point the code may be in an unstable state.  Immediate action is recommended." +
+      "  The CI service will be suspended indefinitely; it will need to be restarted once you've fixed the issue.";
       // Kill the task queue so that it doesn't restart the server.   Note that this
       // nulls out the "drain", so the server won't ever restart again until the CI app
       // is restarted.
@@ -33,11 +36,38 @@ module.exports = function (cb, msg) {
         // unstable state the next time the server restarts.
         if (err) {
           sails.log.error(cb, "Couldn't checkout commit `"+commit+"`; got: "+err);
+          msg += " Additionally, an error occurred trying to roll back to the last known good commit." +
+          "  At this point the code may be in an unstable state.  Immediate action is recommended." +
+          "  The CI service will be suspended indefinitely; it will need to be restarted once you've fixed the issue.";
           // Kill the task queue so that it doesn't restart the server.   Note that this
           // nulls out the "drain", so the server won't ever restart again until the CI app
           // is restarted.
           sails.config.ciQueue.kill();
         }
+      });
+    }
+
+    if (sails.config.sendEmailOnFailure) {
+
+      var options = {
+        to: sails.config.sendEmailTo,
+        subject: "Failed deployment of "+sails.config.repository+" on "+server
+      };
+      if (attachment) {
+        options.attachments = [{
+          filename: "errors.txt",
+          contents: attachment
+        }];
+      }
+      sails.hooks.email.send("failure", {
+        error: msg,
+        server: server,
+        repo: sails.config.repository,
+        branch: sails.config.ref.split('/').pop(),
+        date: new Date()
+      },
+      options, function(err){
+        if (err) {sails.log.error("MAIL ERR", err);}
       });
     }
 
