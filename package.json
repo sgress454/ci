@@ -37,5 +37,10 @@
     "url": "git://github.com/root/ci.git"
   },
   "author": "root",
-  "license": ""
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "LICENSE.md"
+    }
+  ]
 }
