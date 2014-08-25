@@ -49,7 +49,14 @@ module.exports = {
         sails.log("Finished `forever stop`");
 
         sails.log("Running `forever start "+scriptPath+"`...");
-        ps = exec("forever start "+path.resolve(sails.config.localRepoPath, sails.config.localRepoScript), {cwd: sails.config.localRepoPath}, function(err) {
+        var cmd = "forever start "+path.resolve(sails.config.localRepoPath, sails.config.localRepoScript);
+
+        // Set an environment if directed
+        if (sails.config.targetEnvironment) {
+          cmd = "NODE_ENV="+sails.config.targetEnvironment+" "+cmd;
+        }
+
+        ps = exec(cmd, {cwd: sails.config.localRepoPath}, function(err) {
           if (err) {
             sails.log("Error on `forever stop "+scriptPath+"`: ", err);
             // handle error
